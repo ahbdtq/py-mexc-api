@@ -18,17 +18,20 @@ class MexcWebsocketApp(WebSocketApp):  # type: ignore[misc]
 
     def __init__(
         self,
-        api_key: str,
-        api_secret: str,
+        api_key: str | None = None,
+        api_secret: str | None = None,
         on_open: Callable | None = None,
         on_message: Callable | None = None,
         on_error: Callable | None = None,
         on_close: Callable | None = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
-        spot = Spot(api_key, api_secret)
-        self.listen_key = spot.account.create_listen_key()
-        stream_url = f"wss://wbs.mexc.com/ws?listenKey={self.listen_key}"
+        stream_url = "wss://wbs.mexc.com/ws"
+        self.listen_key = None
+        if api_key is not None and api_secret is not None:
+            spot = Spot(api_key, api_secret)
+            self.listen_key = spot.account.create_listen_key()
+            stream_url = f"{stream_url}?listenKey={self.listen_key}"
 
         super().__init__(
             stream_url,
@@ -42,11 +45,12 @@ class MexcWebsocketApp(WebSocketApp):  # type: ignore[misc]
             target=self.run_forever, kwargs={"reconnect": 1, "ping_interval": 20}
         ).start()
 
-        Thread(
-            target=lambda: self._keep_alive(spot),
-            daemon=True,
-            name="Mexc keep alive listen key",
-        ).start()
+        if self.listen_key:
+            Thread(
+                target=lambda: self._keep_alive(spot),
+                daemon=True,
+                name="Mexc keep alive listen key",
+            ).start()
 
     def _keep_alive(self, spot: Spot) -> None:
         """Keeps the listen key alive."""

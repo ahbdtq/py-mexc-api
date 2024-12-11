@@ -13,12 +13,12 @@ class SpotWebsocketStreamClient:
 
     def __init__(
         self,
-        api_key: str,
-        api_secret: str,
         on_message: Callable[[dict], None],
         on_open: Callable[[], None] | None = None,
         on_close: Callable | None = None,
         on_error: Callable | None = None,
+        api_key: str | None = None,
+        api_secret: str | None = None,
     ):
         self.logger = logging.getLogger(__name__)
         self.streams: set[str] = set()
@@ -53,6 +53,8 @@ class SpotWebsocketStreamClient:
         self.streams.add(stream)
         message = {"method": action.value, "params": [stream]}
         self.mexc_websocket_app.send_message(message)
+        if action == Action.UNSUBSCRIBE:
+            self.streams.discard(stream)
 
     def stop(self) -> None:
         """Stops the websocket connection."""
